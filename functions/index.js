@@ -9,13 +9,12 @@
 
 
 const { onRequest } = require("firebase-functions/v2/https");
+const axios = require('axios');
 const logger = require("firebase-functions/logger");
+
 const Shopify = require('shopify-api-node');
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
-
-exports.appproxy = onRequest(async (request, response) => {
+exports.appproxy = onRequest(async (req, res) => {
     // Your existing Shopify configuration
     const shopify = new Shopify({
         shopName: process.env.SHOP_DOMAIN,
@@ -23,23 +22,31 @@ exports.appproxy = onRequest(async (request, response) => {
     });
 
     // Your existing getProducts function
-    async function getProducts() {
+    async function getCustomer(id) {
         try {
-            return await shopify.customer.list();
+            return await shopify.customer.get(id)
         } catch (error) {
-            logger.error('Error fetching products:', error.message);
+            logger.error('Error fetching customer:', error.message);
             return null
         }
     }
-    logger.info("Hello logs!", { structuredData: true });
 
-    // Call the getProducts function
-    const products = await getProducts();
+    logger.info("Customer ID!", req.body.customerId);
+    const customer = await getCustomer(req.body.customerId)
+    logger.info("Hello customer!", customer.first_name);
+
+    // Build a PDF based on the customer data here
 
     // Send a response to the app proxy
-    if (products) {
-        response.send('Customer information fetched successfully.');
+    if (customer) {
+        // Return a PDF
+        const url = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+
+        res.contentType("application/pdf");
+        res.send(Buffer.from(response.data, 'binary'));
     } else {
-        response.send('Customer information could not be fetched')
+        res.sendStatus(404)
     }
 });
