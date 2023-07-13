@@ -61,8 +61,8 @@ exports.appproxy = onRequest(async (req, res) => {
         const address = order.billing_address;
         doc
             .moveDown()
-            .text(`Customer's name: ${address.first_name} ${address.last_name}`)
-            .text(`Customer's address: ${address.address1}, ${address.city}, ${address.zip}, ${address.province}, ${address.country}`)
+            .text(`${address.first_name} ${address.last_name}`)
+            .text(`Address: ${address.address1}, ${address.city}, ${address.zip}, ${address.province}, ${address.country}`)
             .moveDown()
             .text("Order details:");
 
