@@ -1,27 +1,18 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-
+// Import necessary modules
 const { onRequest } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const PDFDocument = require('pdfkit');
-
 const Shopify = require('shopify-api-node');
 
+// Define your Firebase HTTP function
 exports.appproxy = onRequest(async (req, res) => {
-    // Your existing Shopify configuration
+    // Initialize Shopify instance with your shop's domain and access token
     const shopify = new Shopify({
         shopName: process.env.SHOP_DOMAIN,
         accessToken: process.env.ACCESS_TOKEN
     });
 
-    // Your existing getProducts function
+    // Function to fetch customer data from Shopify
     async function getCustomer(id) {
         try {
             return await shopify.customer.get(id)
@@ -31,26 +22,61 @@ exports.appproxy = onRequest(async (req, res) => {
         }
     }
 
-    logger.info("Customer ID!", req.body.customerId);
+    async function getCustomerOrders(id) {
+        try {
+            return await shopify.customer.orders(id)
+        } catch (error) {
+            logger.error('Error fetching orders:', error.message);
+            return null
+        }
+    }
+
+    // Fetch the customer using the received ID
     const customer = await getCustomer(req.body.customerId)
-    logger.info("Hello customer!", customer?.first_name);
 
-    // Build a PDF based on the customer data here
+    // Fetch orders created by customer
+    const orders = await getCustomerOrders(req.body.customerId)
 
-    // Send a response to the app proxy
-    // if (customer) {
+    const order = orders.find(order => {
+        return req.body.orderId == order.id
+    });
+
+    // Set response headers for PDF output
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename=your-bill.pdf`);
+
+    // Create a new PDF document
     const doc = new PDFDocument();
+
+    // Add text to the PDF
     doc
-        .fontSize(24)
-        .text("Receipt")
+        .fontSize(38)
+        .text("Tax invoice")
         .fontSize(16)
         .moveDown(2)
-        .text("This is your receipt!" + customer?.first_name);
+        .text("Tax invoice for " + customer?.first_name + " " + customer?.last_name);
+
+    // If order exists, add order details to the PDF
+    if (order) {
+        const address = order.billing_address;
+        doc
+            .moveDown()
+            .text(`Customer's name: ${address.first_name} ${address.last_name}`)
+            .text(`Customer's address: ${address.address1}, ${address.city}, ${address.zip}, ${address.province}, ${address.country}`)
+            .moveDown()
+            .text("Order details:");
+
+        order.line_items.forEach(item => {
+            doc
+                .text(`Title: ${item.title}, Quantity: ${item.quantity}, Price: ${item.price}`);
+        });
+
+        doc
+            .moveDown()
+            .text(`Total amount: ${order.total_price}`)
+            .text(`Tax amount: ${order.total_tax}`);
+    }
+    // Pipe the PDF into the response
     doc.pipe(res);
     doc.end();
-    // } else {
-    //     res.sendStatus(404)
-    // }
 });
