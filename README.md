@@ -1,3 +1,5 @@
+:warning: <b>This code is for reference only, please do not use it for production. </b> :warning: 
+
 # Shopify App Template - Node
 
 This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using Node and React. It contains the basics for building a Shopify app.
