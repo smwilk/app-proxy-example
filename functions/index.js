@@ -1,3 +1,5 @@
+// This code is for reference and inspiration only, Please do not use it for production.
+
 // Import necessary modules
 const { onRequest } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
